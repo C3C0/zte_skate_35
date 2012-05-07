@@ -197,6 +197,7 @@ struct msm_camvfe_fn {
 	int (*vfe_disable)(struct camera_enable_cmd *,
 		struct platform_device *dev);
 	void (*vfe_release)(struct platform_device *);
+	void (*vfe_stop)(void);
 };
 
 struct msm_camvpe_fn {
@@ -290,9 +291,12 @@ struct msm_sync {
 	struct wake_lock wake_suspend_lock;
 	struct wake_lock wake_lock;
 	struct platform_device *pdev;
+	int16_t ignore_qcmd_type;
+	uint8_t ignore_qcmd;
 	uint8_t opencnt;
 	void *cropinfo;
 	int  croplen;
+	int  core_powered_on;
 
 	struct fd_roi_info fdroiinfo;
 
@@ -547,6 +551,7 @@ int  msm_camio_clk_enable(enum msm_camio_clk_type clk);
 int  msm_camio_clk_disable(enum msm_camio_clk_type clk);
 int  msm_camio_clk_config(uint32_t freq);
 void msm_camio_clk_rate_set(int rate);
+void msm_camio_vfe_clk_rate_set(int rate);
 void msm_camio_clk_rate_set_2(struct clk *clk, int rate);
 void msm_camio_clk_set_min_rate(struct clk *clk, int rate);
 void msm_camio_clk_axi_rate_set(int rate);

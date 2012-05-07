@@ -2266,6 +2266,7 @@ static long msm_ioctl_config(struct file *filep, unsigned int cmd,
 		break;
 	}
 
+	/*
 	case MSM_CAM_IOCTL_STROBE_FLASH_CFG: {
 		uint32_t flash_type;
 		if (copy_from_user(&flash_type, argp, sizeof(flash_type))) {
@@ -2278,7 +2279,7 @@ static long msm_ioctl_config(struct file *filep, unsigned int cmd,
 		}
 		break;
 	}
-
+	*/	
 	case MSM_CAM_IOCTL_STROBE_FLASH_RELEASE:
 		if (pmsm->sync->sdata->strobe_flash_data) {
 			rc = pmsm->sync->sfctrl.strobe_flash_release(
@@ -2306,7 +2307,7 @@ static long msm_ioctl_config(struct file *filep, unsigned int cmd,
 			rc = -EFAULT;
 		} else
 #if defined (CONFIG_MSM_CAMERA_FLASH)		
-			rc = msm_flash_ctrl(pmsm->sync->sdata, &flash_info);
+			//rc = msm_flash_ctrl(pmsm->sync->sdata, &flash_info);
 #endif
 		break;
 	}
@@ -3364,3 +3365,93 @@ int msm_camera_drv_start(struct platform_device *dev,
 	return rc;
 }
 EXPORT_SYMBOL(msm_camera_drv_start);
+
+
+#define ENOINIT 100 /*have not power up,so don't need to power down*/
+ 
+#if defined(CONFIG_SENSOR_ADAPTER)
+DECLARE_MUTEX(msm_camera_sensor_dev_sem);
+/*
+ * sensor_init_status
+ * 0: not initialized
+ * 1: initialized
+ */
+int msm_camera_dev_start(struct platform_device *dev,
+                                 int (*i2c_dev_probe_on)(void),
+                                 void (*i2c_dev_probe_off)(void),
+                                 int (*sensor_dev_probe)(const struct msm_camera_sensor_info *))
+{
+    int rc = 0;
+    struct msm_camera_sensor_info *sensor_info_ptr;
+    static uint32_t sensor_init_status = 0;
+
+    down(&msm_camera_sensor_dev_sem);
+    
+    CDBG("%s: entry, name=%s\n", __func__, dev->name);
+
+    if(0 == sensor_init_status)
+    {
+        rc = i2c_dev_probe_on();
+        if (rc < 0)
+        {
+            CCRT("%s: i2c_dev_probe_on failed!\n", __func__);
+
+         
+            up(&msm_camera_sensor_dev_sem);
+            
+            return -ENOINIT;
+        }
+
+        rc = msm_camio_probe_on(dev);
+        if (rc < 0)
+        {
+            CCRT("%s: msm_camio_probe_on failed!\n", __func__);
+            rc = -ENOINIT;
+            goto dev_start_exit;
+        }
+
+        sensor_info_ptr = dev->dev.platform_data;
+        rc = sensor_dev_probe(sensor_info_ptr);
+        if (rc < 0)
+        {
+            CCRT("%s: sensor_dev_probe failed!\n", __func__);
+
+            /* ignore "rc" */
+            msm_camio_probe_off(dev);
+
+            goto dev_start_exit;
+        }
+        else
+        {
+            sensor_init_status = 1;
+        }
+
+        rc = msm_camio_probe_off(dev);
+        if (rc < 0) 
+        {
+            CCRT("%s: msm_camio_probe_off failed!\n", __func__);
+            goto dev_start_exit;
+        }
+    }
+    else
+    {
+        rc = -ENOINIT;
+        CDBG("%s: entry, no need to initialize name=%s \n", __func__,dev->name);
+    }
+
+    up(&msm_camera_sensor_dev_sem);
+
+    /*
+     * rc < 0 :failed
+     * rc >= 0:success
+     */
+    return rc;
+
+dev_start_exit:
+    i2c_dev_probe_off();
+    up(&msm_camera_sensor_dev_sem);
+    return rc;
+}
+EXPORT_SYMBOL(msm_camera_dev_start);
+#endif
+
