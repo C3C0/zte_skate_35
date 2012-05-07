@@ -1805,7 +1805,6 @@ static int mdp_get_edge_cond(MDPIBUF *iBuf, uint32 *dup, uint32 *dup2)
 
 	switch (iBuf->ibuf_type) {
 	case MDP_Y_CBCR_H2V2:
-	case MDP_Y_CBCR_H2V2_ADRENO:
 	case MDP_Y_CRCB_H2V2:
 		/*
 		 * Edge condition for MDP_Y_CRCB/CBCR_H2V2 cosite only.

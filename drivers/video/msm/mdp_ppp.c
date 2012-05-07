@@ -671,7 +671,6 @@ struct mdp_blit_req *req, struct file *p_src_file, struct file *p_dst_file)
 		break;
 
 	case MDP_Y_CBCR_H2V2:
-	case MDP_Y_CBCR_H2V2_ADRENO:
 	case MDP_Y_CRCB_H2V2:
 		if (iBuf->ibuf_type == MDP_Y_CBCR_H2V2)
 			dst_packPattern =
@@ -873,6 +872,7 @@ struct mdp_blit_req *req, struct file *p_src_file, struct file *p_dst_file)
 		break;
 
 	case MDP_Y_CBCR_H2V2:
+	case MDP_Y_CBCR_H2V2_ADRENO:
 	case MDP_Y_CRCB_H2V2:
 		inpBpp = 1;
 		src1 = (uint8 *) iBuf->mdpImg.cbcr_addr;
@@ -1064,11 +1064,11 @@ struct mdp_blit_req *req, struct file *p_src_file, struct file *p_dst_file)
 		}
 	}
 
-	src0_ystride = src_width * inpBpp;
 	if (iBuf->mdpImg.imgType == MDP_Y_CBCR_H2V2_ADRENO)
 		src0_ystride = ALIGN(src_width, 32) * inpBpp;
 	else
 		src0_ystride = src_width * inpBpp;
+
 	if (iBuf->mdpImg.imgType == MDP_Y_CBCR_H2V2_ADRENO)
 		src0_y1stride = 2 * ALIGN(src_width/2, 32);
 	else
