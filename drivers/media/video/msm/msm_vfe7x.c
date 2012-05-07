@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2009-2011, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -59,8 +59,9 @@ static uint32_t extlen;
 struct mutex vfe_lock;
 static void     *vfe_syncdata;
 static uint8_t vfestopped;
-
 static struct stop_event stopevent;
+static uint32_t vfetask_state;
+static int cnt;
 
 static void vfe_7x_convert(struct msm_vfe_phy_info *pinfo,
 		enum vfe_resp_msg type,
@@ -193,9 +194,15 @@ static int vfe_7x_enable(struct camera_enable_cmd *enable)
 
 	if (!strcmp(enable->name, "QCAMTASK"))
 		rc = msm_adsp_enable(qcam_mod);
-	else if (!strcmp(enable->name, "VFETASK"))
+	else if (!strcmp(enable->name, "VFETASK")) {
 		rc = msm_adsp_enable(vfe_mod);
+		vfetask_state = 1;
+	}
 
+	if (!cnt) {
+		add_axi_qos();
+		cnt++;
+	}
 	return rc;
 }
 
@@ -206,8 +213,10 @@ static int vfe_7x_disable(struct camera_enable_cmd *enable,
 
 	if (!strcmp(enable->name, "QCAMTASK"))
 		rc = msm_adsp_disable(qcam_mod);
-	else if (!strcmp(enable->name, "VFETASK"))
+	else if (!strcmp(enable->name, "VFETASK")) {
 		rc = msm_adsp_disable(vfe_mod);
+		vfetask_state = 0;
+	}
 
 	return rc;
 }
@@ -245,6 +254,7 @@ static void vfe_7x_release(struct platform_device *pdev)
 
 	msm_adsp_disable(qcam_mod);
 	msm_adsp_disable(vfe_mod);
+	vfetask_state = 0;
 
 	msm_adsp_put(qcam_mod);
 	msm_adsp_put(vfe_mod);
@@ -693,9 +703,9 @@ static int vfe_7x_config(struct msm_vfe_cfg_cmd *cmd, void *data)
 
 config_send:
 	CDBG("send adsp command = %d\n", *(uint32_t *)cmd_data);
-	rc = msm_adsp_write(vfe_mod, vfecmd->queue,
-				cmd_data, vfecmd->length);
-
+	if (vfetask_state)
+		rc = msm_adsp_write(vfe_mod, vfecmd->queue,
+					cmd_data, vfecmd->length);
 config_done:
 	if (cmd_data_alloc != NULL)
 		kfree(cmd_data_alloc);
