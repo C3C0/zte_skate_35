@@ -494,7 +494,14 @@ int audpp_set_volume_and_pan(unsigned id, unsigned volume, int pan)
 	cmd[0] = AUDPP_CMD_CFG_OBJECT_PARAMS;
 	cmd[1 + id] = AUDPP_CMD_CFG_OBJ_UPDATE;
 	cmd[8] = AUDPP_CMD_VOLUME_PAN;
+	
+#ifdef CONFIG_ADSP_CM_BOOST_VOLUME	
+	cmd[9] = volume*2;
+	MM_INFO("Original volume: %u, Boosted volume %u", volume, cmd[9]);
+#else
 	cmd[9] = volume;
+#endif
+
 	cmd[10] = pan;
 
 	return audpp_send_queue3(cmd, sizeof(cmd));
@@ -613,7 +620,13 @@ int audpp_dsp_set_vol_pan(unsigned id,
 	id_ptr[1 + id] = AUDPP_CMD_CFG_OBJ_UPDATE;
 	cmd.common.command_type = AUDPP_CMD_VOLUME_PAN;
 
+#ifdef CONFIG_ADSP_CM_BOOST_VOLUME			
+	cmd.volume = vol_pan->volume * 2;
+	MM_INFO("Original volume: %u, Boosted volume %u", vol_pan->volume, cmd.volume);
+#else
 	cmd.volume = vol_pan->volume;
+#endif	
+	
 	cmd.pan = vol_pan->pan;
 
 	return audpp_send_queue3(&cmd, sizeof(cmd));
