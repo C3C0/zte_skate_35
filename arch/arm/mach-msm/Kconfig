@@ -1195,6 +1195,14 @@ choice
 		bool "2.0.08"
 endchoice
 
+config ADSP_CM_BOOST_VOLUME
+	bool "CM Boost volume"
+	default n
+	depends on MSM_ADSP
+	help
+	 Boosts volume at kernel level. Suitable for CyanogenMod where
+	 volume is typically very low.
+
 config MSM7KV2_AUDIO
 	bool "MSM7K v2 audio"
 	depends on (ARCH_MSM7X30 && ANDROID_PMEM)
