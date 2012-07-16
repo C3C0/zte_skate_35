@@ -5,7 +5,8 @@ DHDCFLAGS = -DLINUX  -DBCMDRIVER -DBCMDONGLEHOST -DDHDTHREAD -DBCMWPA2 -DBCMWAPI
 -DBCMLXSDMMC -DBCMPLATFORM_BUS   -DEMBEDDED_PLATFORM -DOEM_ANDROID       \
 -DMMC_SDIO_ABORT -Wall  -DOOB_INTR_ONLY -DCUSTOM_OOB_GPIO_NUM=19                                             \
 -Wstrict-prototypes -Werror     -DCSCAN  -DKEEP_ALIVE  -DPKT_FILTER_SUPPORT  -DARP_OFFLOAD_SUPPORT                                   \
--Idrivers/net/wireless/bcm4319 -Idrivers/net/wireless/bcm4319/include
+-Idrivers/net/wireless/bcm4319 -Idrivers/net/wireless/bcm4319/include \
+-Wno-array-bounds
 
 DHDOFILES = dhd_linux.o linux_osl.o bcmutils.o dhd_common.o dhd_custom_gpio.o \
 	wl_iw.o siutils.o sbutils.o aiutils.o hndpmu.o bcmwifi.o dhd_sdio.o   \
