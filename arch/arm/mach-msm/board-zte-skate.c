@@ -2706,6 +2706,14 @@ static struct i2c_board_info aux_i2c_devices[] = {
 		.type         = "taos",
 		.addr         = 0x39,
 	},
+	{
+		.type         = "isl29026",
+		.addr         = 0x45,
+	},
+	{
+		.type         = "ona3301",
+		.addr         = 0x37,
+	},
 };
 
 
