@@ -2941,6 +2941,9 @@ static int msm_lcd_read_proc(
 		case LCD_PANEL_4P3_HX8369A:
 			strcpy(module_name,"61");
 			break;
+		case 62:
+			strcpy(module_name,"zteBOE(NT35510+HYDIS)_WVGA_4.3Inch");
+			break;
 		case LCD_PANEL_3P8_NT35510_1:
 			strcpy(module_name,"70");
 			break;
