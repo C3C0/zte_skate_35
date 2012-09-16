@@ -84,7 +84,7 @@ scripts/mod/mk_elfconfig
 scripts/mod/modpost
 usr/gen_init_cpio
 usr/initramfs_data.cpio
-
+arch/arm/boot/compressed/ashldi3.S
 
 
 
