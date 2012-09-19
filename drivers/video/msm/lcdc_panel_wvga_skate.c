@@ -1331,9 +1331,9 @@ gpio_lcd_lead_emuspi_write_one_index(0xD633,0XCC);
 gpio_lcd_lead_emuspi_write_one_index(0xB600,0X44);   //Add for AVDD Pump
 gpio_lcd_lead_emuspi_write_one_index(0xB700,0X34);   //Add for AVEE Pump
                                           
-gpio_lcd_lead_emuspi_write_one_index(0xB000,0X0A);//0x12 AVDD Voltage Setting	
-gpio_lcd_lead_emuspi_write_one_index(0xB001,0X0A);
-gpio_lcd_lead_emuspi_write_one_index(0xB002,0X0A);
+gpio_lcd_lead_emuspi_write_one_index(0xB000,0X12);// AVDD Voltage Setting (0x0A causes undesired saturation effect)
+gpio_lcd_lead_emuspi_write_one_index(0xB001,0X12);
+gpio_lcd_lead_emuspi_write_one_index(0xB002,0X12);
                                           
 gpio_lcd_lead_emuspi_write_one_index(0xB100,0X0A);//AVEE Voltage Setting	
 gpio_lcd_lead_emuspi_write_one_index(0xB101,0X0A);
