@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -29,10 +29,10 @@
 #ifndef _VCD_H_
 #define _VCD_H_
 
-#include "vcd_api.h"
+#include <media/msm/vcd_api.h>
+#include "vcd_util.h"
 #include "vcd_ddl_api.h"
 #include "vcd_res_tracker_api.h"
-#include "vcd_util.h"
 #include "vcd_client_sm.h"
 #include "vcd_core.h"
 #include "vcd_device_sm.h"
@@ -400,5 +400,15 @@ void vcd_handle_clnt_fatal(struct vcd_clnt_ctxt *cctxt, u32 trans_end);
 
 void vcd_handle_clnt_fatal_input_done(struct vcd_clnt_ctxt *cctxt,
 	u32 trans_end);
+
+void vcd_handle_ind_info_output_reconfig
+	(struct vcd_clnt_ctxt *cctxt, u32 status);
+
+u32 vcd_req_perf_level(struct vcd_clnt_ctxt *cctxt,
+	struct vcd_property_perf_level *);
+
+u32 vcd_set_num_slices(struct vcd_clnt_ctxt *cctxt);
+
+u32 vcd_update_decoder_perf_level(struct vcd_dev_ctxt *dev_ctxt, u32 perf_lvl);
 
 #endif

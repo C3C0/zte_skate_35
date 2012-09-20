@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -71,14 +71,22 @@
 #define DDL_HW_TIMEOUT_IN_MS             1000
 #define DDL_STREAMBUF_ALIGN_GUARD_BYTES  0x7FF
 
+#define DDL_VIDC_1080P_48MHZ			(48000000)
+#define DDL_VIDC_1080P_133MHZ			(133330000)
+#define DDL_VIDC_1080P_200MHZ			(200000000)
+#define DDL_VIDC_1080P_48MHZ_TIMEOUT_VALUE	(0xCB8)
+#define DDL_VIDC_1080P_133MHZ_TIMEOUT_VALUE	(0x2355)
+#define DDL_VIDC_1080P_200MHZ_TIMEOUT_VALUE	(0x3500)
+
 #define DDL_CONTEXT_MEMORY (1024 * 15 * (VCD_MAX_NO_CLIENT + 1))
 
 #define DDL_ENC_MIN_DPB_BUFFERS           2
 #define DDL_ENC_MAX_DPB_BUFFERS           4
 
-#define DDL_FW_AUX_HOST_CMD_SPACE_SIZE         (DDL_KILO_BYTE(10))
-#define DDL_FW_INST_GLOBAL_CONTEXT_SPACE_SIZE  (DDL_KILO_BYTE(400))
-#define DDL_FW_H264DEC_CONTEXT_SPACE_SIZE      (DDL_KILO_BYTE(600))
+#define DDL_FW_AUX_HOST_CMD_SPACE_SIZE         (DDL_KILO_BYTE(4))
+#define DDL_FW_INST_GLOBAL_CONTEXT_SPACE_SIZE  (DDL_KILO_BYTE(800))
+#define DDL_FW_H264DEC_CONTEXT_SPACE_SIZE      (DDL_KILO_BYTE(800))
+#define DDL_FW_H264ENC_CONTEXT_SPACE_SIZE      (DDL_KILO_BYTE(20))
 #define DDL_FW_OTHER_CONTEXT_SPACE_SIZE        (DDL_KILO_BYTE(10))
 
 #define VCD_DEC_CPB_SIZE         (DDL_KILO_BYTE(512))
@@ -138,5 +146,11 @@
 #define DDL_PIXEL_CACHE_NOT_IDLE          0x4000
 #define DDL_PIXEL_CACHE_STATUS_READ_RETRY 10
 #define DDL_PIXEL_CACHE_STATUS_READ_SLEEP 200
+
+#define DDL_RESL_CHANGE_NO_CHANGE               0
+#define DDL_RESL_CHANGE_INCREASED               1
+#define DDL_RESL_CHANGE_DECREASED               2
+
+#define GRAPHICS_UNUSED_BUFFERS		2
 
 #endif

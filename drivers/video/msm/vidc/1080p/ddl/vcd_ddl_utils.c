@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2011-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -15,16 +15,23 @@
  * 02110-1301, USA.
  *
  */
+#include <linux/memory_alloc.h>
+#include <mach/msm_subsystem_map.h>
+#include <mach/peripheral-loader.h>
+#include <linux/delay.h>
 #include "vcd_ddl_utils.h"
 #include "vcd_ddl.h"
+#include "vcd_res_tracker_api.h"
 
-#ifdef DDL_PROFILE
-static unsigned int ddl_dec_t1, ddl_enc_t1;
-static unsigned int ddl_dec_ttotal, ddl_enc_ttotal;
-static unsigned int ddl_dec_count, ddl_enc_count;
-#endif
-
-#define DDL_FW_CHANGE_ENDIAN
+struct time_data {
+	unsigned int ddl_t1;
+	unsigned int ddl_ttotal;
+	unsigned int ddl_count;
+};
+static struct time_data proc_time[MAX_TIME_DATA];
+#define DDL_MSG_TIME(x...) printk(KERN_DEBUG x)
+static unsigned int vidc_mmu_subsystem[] =	{
+		MSM_SUBSYSTEM_VIDEO, MSM_SUBSYSTEM_VIDEO_FWARE};
 
 #ifdef DDL_BUF_LOG
 static void ddl_print_buffer(struct ddl_context *ddl_context,
@@ -34,58 +41,191 @@ static void ddl_print_port(struct ddl_context *ddl_context,
 static void ddl_print_buffer_port(struct ddl_context *ddl_context,
 	struct ddl_buf_addr *buf, u32 idx, u8 *str);
 #endif
-
 void *ddl_pmem_alloc(struct ddl_buf_addr *addr, size_t sz, u32 alignment)
 {
-	u32 alloc_size, offset = 0;
-
+	u32 alloc_size, offset = 0 ;
+	u32 index = 0;
+	struct ddl_context *ddl_context;
+	struct msm_mapped_buffer *mapped_buffer = NULL;
+	unsigned long iova = 0;
+	unsigned long buffer_size = 0;
+	unsigned long *kernel_vaddr = NULL;
+	unsigned long ionflag = 0;
+	unsigned long flags = 0;
+	int ret = 0;
+	ion_phys_addr_t phyaddr = 0;
+	size_t len = 0;
+	int rc = 0;
+	DBG_PMEM("\n%s() IN: Requested alloc size(%u)", __func__, (u32)sz);
+	if (!addr) {
+		DDL_MSG_ERROR("\n%s() Invalid Parameters", __func__);
+		goto bail_out;
+	}
+	ddl_context = ddl_get_context();
+	res_trk_set_mem_type(addr->mem_type);
 	alloc_size = (sz + alignment);
-	addr->physical_base_addr = (u8 *) pmem_kalloc(alloc_size,
-		PMEM_MEMTYPE_SMI | PMEM_ALIGNMENT_4K);
-	if (!addr->physical_base_addr) {
-		DDL_MSG_ERROR("%s() : pmem alloc failed (%d)\n", __func__,
-			alloc_size);
-		return NULL;
+	if (res_trk_get_enable_ion()) {
+		if (!ddl_context->video_ion_client)
+			ddl_context->video_ion_client =
+				res_trk_get_ion_client();
+		if (!ddl_context->video_ion_client) {
+			DDL_MSG_ERROR("%s() :DDL ION Client Invalid handle\n",
+						 __func__);
+			goto bail_out;
+		}
+		alloc_size = (alloc_size+4095) & ~4095;
+		addr->alloc_handle = ion_alloc(
+		ddl_context->video_ion_client, alloc_size, SZ_4K,
+			res_trk_get_mem_type());
+		if (IS_ERR_OR_NULL(addr->alloc_handle)) {
+			DDL_MSG_ERROR("%s() :DDL ION alloc failed\n",
+						 __func__);
+			goto bail_out;
+		}
+		if (res_trk_check_for_sec_session() ||
+			addr->mem_type == DDL_FW_MEM)
+			ionflag = UNCACHED;
+		else
+			ionflag = CACHED;
+		kernel_vaddr = (unsigned long *) ion_map_kernel(
+					ddl_context->video_ion_client,
+					addr->alloc_handle, ionflag);
+		if (IS_ERR_OR_NULL(kernel_vaddr)) {
+				DDL_MSG_ERROR("%s() :DDL ION map failed\n",
+							 __func__);
+				goto free_ion_alloc;
+		}
+		addr->virtual_base_addr = (u8 *) kernel_vaddr;
+		if (res_trk_check_for_sec_session()) {
+			rc = ion_phys(ddl_context->video_ion_client,
+				addr->alloc_handle, &phyaddr,
+					&len);
+			if (rc || !phyaddr) {
+				DDL_MSG_ERROR(
+				"%s():DDL ION client physical failed\n",
+				__func__);
+				goto unmap_ion_alloc;
+			}
+			addr->alloced_phys_addr = phyaddr;
+		} else {
+			ret = ion_map_iommu(ddl_context->video_ion_client,
+					addr->alloc_handle,
+					VIDEO_DOMAIN,
+					VIDEO_MAIN_POOL,
+					SZ_4K,
+					0,
+					&iova,
+					&buffer_size,
+					UNCACHED, 0);
+			if (ret) {
+				DDL_MSG_ERROR(
+				"%s():DDL ION ion map iommu failed\n",
+				 __func__);
+				goto unmap_ion_alloc;
+			}
+			addr->alloced_phys_addr = (phys_addr_t) iova;
+		}
+		if (!addr->alloced_phys_addr) {
+			DDL_MSG_ERROR("%s():DDL ION client physical failed\n",
+						 __func__);
+			goto unmap_ion_alloc;
+		}
+		addr->mapped_buffer = NULL;
+		addr->physical_base_addr = (u8 *) addr->alloced_phys_addr;
+		addr->align_physical_addr = (u8 *) DDL_ALIGN((u32)
+			addr->physical_base_addr, alignment);
+		offset = (u32)(addr->align_physical_addr -
+				addr->physical_base_addr);
+		addr->align_virtual_addr = addr->virtual_base_addr + offset;
+		addr->buffer_size = alloc_size;
+	} else {
+		addr->alloced_phys_addr = (phys_addr_t)
+		allocate_contiguous_memory_nomap(alloc_size,
+			res_trk_get_mem_type(), SZ_4K);
+		if (!addr->alloced_phys_addr) {
+			DDL_MSG_ERROR("%s() : acm alloc failed (%d)\n",
+					 __func__, alloc_size);
+			goto bail_out;
+		}
+		flags = MSM_SUBSYSTEM_MAP_IOVA | MSM_SUBSYSTEM_MAP_KADDR;
+		if (alignment == DDL_KILO_BYTE(128))
+				index = 1;
+		else if (alignment > SZ_4K)
+			flags |= MSM_SUBSYSTEM_ALIGN_IOVA_8K;
+
+		addr->mapped_buffer =
+		msm_subsystem_map_buffer((unsigned long)addr->alloced_phys_addr,
+			alloc_size, flags, &vidc_mmu_subsystem[index],
+			sizeof(vidc_mmu_subsystem[index])/sizeof(unsigned int));
+		if (IS_ERR(addr->mapped_buffer)) {
+			pr_err(" %s() buffer map failed", __func__);
+			goto free_acm_alloc;
+		}
+		mapped_buffer = addr->mapped_buffer;
+		if (!mapped_buffer->vaddr || !mapped_buffer->iova[0]) {
+			pr_err("%s() map buffers failed\n", __func__);
+			goto free_map_buffers;
+		}
+		addr->physical_base_addr = (u8 *)mapped_buffer->iova[0];
+		addr->virtual_base_addr = mapped_buffer->vaddr;
+		addr->align_physical_addr = (u8 *) DDL_ALIGN((u32)
+			addr->physical_base_addr, alignment);
+		offset = (u32)(addr->align_physical_addr -
+				addr->physical_base_addr);
+		addr->align_virtual_addr = addr->virtual_base_addr + offset;
+		addr->buffer_size = sz;
 	}
-	DDL_MSG_LOW("%s() : pmem alloc physical base addr/sz 0x%x / %d\n",\
-		__func__, (u32)addr->physical_base_addr, alloc_size);
-	addr->virtual_base_addr = (u8 *)ioremap((unsigned long)
-		addr->physical_base_addr, alloc_size);
-	if (!addr->virtual_base_addr) {
-		DDL_MSG_ERROR("%s() : ioremap failed, virtual(%x)\n", __func__,
-			(u32)addr->virtual_base_addr);
-		return NULL;
-	}
-	DDL_MSG_LOW("%s() : pmem alloc virtual base addr/sz 0x%x / %d\n",\
-		__func__, (u32)addr->virtual_base_addr, alloc_size);
-	addr->align_physical_addr = (u8 *) DDL_ALIGN((u32)
-		addr->physical_base_addr, alignment);
-	offset = (u32)(addr->align_physical_addr -
-			addr->physical_base_addr);
-	addr->align_virtual_addr = addr->virtual_base_addr + offset;
-	addr->buffer_size = sz;
-	DDL_MSG_LOW("%s() : pmem alloc physical aligned addr/sz 0x%x/ %d\n",\
-		__func__, (u32)addr->align_physical_addr, sz);
-	DDL_MSG_LOW("%s() : pmem alloc virtual aligned addr/sz 0x%x / %d\n",\
-		__func__, (u32)addr->virtual_base_addr, sz);
 	return addr->virtual_base_addr;
+free_map_buffers:
+	msm_subsystem_unmap_buffer(addr->mapped_buffer);
+	addr->mapped_buffer = NULL;
+free_acm_alloc:
+		free_contiguous_memory_by_paddr(
+			(unsigned long)addr->alloced_phys_addr);
+		addr->alloced_phys_addr = (phys_addr_t)NULL;
+		return NULL;
+unmap_ion_alloc:
+	ion_unmap_kernel(ddl_context->video_ion_client,
+		addr->alloc_handle);
+	addr->virtual_base_addr = NULL;
+	addr->alloced_phys_addr = (phys_addr_t)NULL;
+free_ion_alloc:
+	ion_free(ddl_context->video_ion_client,
+		addr->alloc_handle);
+	addr->alloc_handle = NULL;
+bail_out:
+	return NULL;
 }
 
 void ddl_pmem_free(struct ddl_buf_addr *addr)
 {
-	DDL_MSG_LOW("ddl_pmem_free:");
-	if (addr->virtual_base_addr)
-		iounmap((void *)addr->virtual_base_addr);
-	if ((addr->physical_base_addr) &&
-		pmem_kfree((s32) addr->physical_base_addr)) {
-		DDL_MSG_LOW("\n %s(): Error in Freeing Physical Address %p",\
-			__func__, addr->physical_base_addr);
+	struct ddl_context *ddl_context;
+	ddl_context = ddl_get_context();
+	if (!addr) {
+		pr_err("%s() invalid args\n", __func__);
+		return;
 	}
-	addr->physical_base_addr   = NULL;
-	addr->virtual_base_addr    = NULL;
-	addr->align_virtual_addr   = NULL;
-	addr->align_physical_addr  = NULL;
-	addr->buffer_size = 0;
+	if (ddl_context->video_ion_client) {
+		if (!IS_ERR_OR_NULL(addr->alloc_handle)) {
+			ion_unmap_kernel(ddl_context->video_ion_client,
+					addr->alloc_handle);
+			if (!res_trk_check_for_sec_session()) {
+				ion_unmap_iommu(ddl_context->video_ion_client,
+					addr->alloc_handle,
+					VIDEO_DOMAIN,
+					VIDEO_MAIN_POOL);
+			}
+			ion_free(ddl_context->video_ion_client,
+				addr->alloc_handle);
+			}
+	} else {
+		if (addr->mapped_buffer)
+			msm_subsystem_unmap_buffer(addr->mapped_buffer);
+		if (addr->alloced_phys_addr)
+			free_contiguous_memory_by_paddr(
+				(unsigned long)addr->alloced_phys_addr);
+	}
+	memset(addr, 0, sizeof(struct ddl_buf_addr));
 }
 
 #ifdef DDL_BUF_LOG
@@ -216,90 +356,116 @@ void ddl_list_buffers(struct ddl_client_context *ddl)
 }
 #endif
 
-#ifdef DDL_FW_CHANGE_ENDIAN
-static void ddl_fw_change_endian(u8 *fw, u32 fw_size)
-{
-	u32 i = 0;
-	u8  temp;
-	for (i = 0; i < fw_size; i = i + 4) {
-		temp = fw[i];
-		fw[i] = fw[i+3];
-		fw[i+3] = temp;
-		temp = fw[i+1];
-		fw[i+1] = fw[i+2];
-		fw[i+2] = temp;
-	}
-	return;
-}
-#endif
-
 u32 ddl_fw_init(struct ddl_buf_addr *dram_base)
 {
-
 	u8 *dest_addr;
-
 	dest_addr = DDL_GET_ALIGNED_VITUAL(*dram_base);
-	if (vidc_video_codec_fw_size > dram_base->buffer_size ||
-		!vidc_video_codec_fw)
-		return false;
 	DDL_MSG_LOW("FW Addr / FW Size : %x/%d", (u32)vidc_video_codec_fw,
 		vidc_video_codec_fw_size);
-	memcpy(dest_addr, vidc_video_codec_fw,
-		vidc_video_codec_fw_size);
-#ifdef DDL_FW_CHANGE_ENDIAN
-	ddl_fw_change_endian(dest_addr, vidc_video_codec_fw_size);
-#endif
+	if (res_trk_check_for_sec_session() && res_trk_is_cp_enabled()) {
+		if (res_trk_enable_footswitch()) {
+			pr_err("Failed to enable footswitch");
+			return false;
+		}
+		if(res_trk_enable_iommu_clocks()) {
+			res_trk_disable_footswitch();
+			pr_err("Failed to enable iommu clocks\n");
+			return false;
+		}
+		dram_base->pil_cookie = pil_get("vidc");
+		if(res_trk_disable_iommu_clocks())
+			pr_err("Failed to disable iommu clocks\n");
+		if (IS_ERR_OR_NULL(dram_base->pil_cookie)) {
+			pr_err("pil_get failed\n");
+			return false;
+		}
+	} else {
+		if (vidc_video_codec_fw_size > dram_base->buffer_size ||
+				!vidc_video_codec_fw)
+			return false;
+		memcpy(dest_addr, vidc_video_codec_fw,
+				vidc_video_codec_fw_size);
+	}
 	return true;
 }
 
-void ddl_fw_release(void)
+void ddl_fw_release(struct ddl_buf_addr *dram_base)
 {
-
+	void *cookie = dram_base->pil_cookie;
+   if (res_trk_is_cp_enabled() &&
+         res_trk_check_for_sec_session()) {
+      res_trk_close_secure_session();
+      if (IS_ERR_OR_NULL(cookie)){
+         pr_err("Invalid params");
+         return;
+      }
+      if (res_trk_enable_footswitch()) {
+         pr_err("Failed to enable footswitch");
+         return;
+      }
+      if(res_trk_enable_iommu_clocks()) {
+         res_trk_disable_footswitch();
+         pr_err("Failed to enable iommu clocks\n");
+         return;
+      }
+      pil_put(cookie);
+      if(res_trk_disable_iommu_clocks())
+         pr_err("Failed to disable iommu clocks\n");
+      if(res_trk_disable_footswitch())
+         pr_err("Failed to disable footswitch\n");
+   } else {
+         if (res_trk_check_for_sec_session())
+            res_trk_close_secure_session();
+		res_trk_release_fw_addr();
+   }
 }
 
 #ifdef DDL_PROFILE
 void ddl_get_core_start_time(u8 codec)
 {
-	u32 *ddl_t1 = NULL;
-	if (!codec)
-		ddl_t1 = &ddl_dec_t1;
-	else if (codec == 1)
-		ddl_t1 = &ddl_enc_t1;
-
-	if (!*ddl_t1) {
-		struct timeval ddl_tv;
-		do_gettimeofday(&ddl_tv);
-		*ddl_t1 = (ddl_tv.tv_sec * 1000) + (ddl_tv.tv_usec / 1000);
+	u32 act_time;
+	struct timeval ddl_tv;
+	struct time_data *time_data = &proc_time[index];
+	do_gettimeofday(&ddl_tv);
+	act_time = (ddl_tv.tv_sec * 1000) + (ddl_tv.tv_usec / 1000);
+	if (!time_data->ddl_t1) {
+		time_data->ddl_t1 = act_time;
+		DDL_MSG_LOW("\n%s(): Start Time (%u)", func_name, act_time);
+	} else if (vidc_msg_timing) {
+		DDL_MSG_TIME("\n%s(): Timer already started! St(%u) Act(%u)",
+			func_name, time_data->ddl_t1, act_time);
 	}
 }
 
-void ddl_calc_core_time(u8 codec)
+void ddl_calc_core_proc_time(const char *func_name, u32 index,
+			struct ddl_client_context *ddl)
 {
-	u32 *ddl_t1 = NULL, *ddl_ttotal = NULL,
-		*ddl_count = NULL;
-	if (!codec) {
-		DDL_MSG_ERROR("\n1080p Core Decode ");
-		ddl_t1 = &ddl_dec_t1;
-		ddl_ttotal = &ddl_dec_ttotal;
-		ddl_count = &ddl_dec_count;
-	} else if (codec == 1) {
-		DDL_MSG_ERROR("\n1080p Core Encode ");
-		ddl_t1 = &ddl_enc_t1;
-		ddl_ttotal = &ddl_enc_ttotal;
-		ddl_count = &ddl_enc_count;
-	}
-
-	if (*ddl_t1) {
+	struct time_data *time_data = &proc_time[index];
+	struct ddl_decoder_data *decoder = NULL;
+	if (time_data->ddl_t1) {
 		int ddl_t2;
 		struct timeval ddl_tv;
 		do_gettimeofday(&ddl_tv);
 		ddl_t2 = (ddl_tv.tv_sec * 1000) + (ddl_tv.tv_usec / 1000);
-		*ddl_ttotal += (ddl_t2 - *ddl_t1);
-		*ddl_count = *ddl_count + 1;
-		DDL_MSG_ERROR("time %u, average time %u, count %u",
-			ddl_t2 - *ddl_t1, (*ddl_ttotal)/(*ddl_count),
-			*ddl_count);
-		*ddl_t1 = 0;
+		time_data->ddl_ttotal += (ddl_t2 - time_data->ddl_t1);
+		time_data->ddl_count++;
+		if (vidc_msg_timing) {
+			DDL_MSG_TIME("\n%s(): cnt(%u) End Time (%u)"
+				"Diff(%u) Avg(%u)",
+				func_name, time_data->ddl_count, ddl_t2,
+				ddl_t2 - time_data->ddl_t1,
+				time_data->ddl_ttotal/time_data->ddl_count);
+		}
+		if ((index == DEC_OP_TIME) && (time_data->ddl_count > 2) &&
+					(time_data->ddl_count < 6)) {
+			decoder = &(ddl->codec_data.decoder);
+			decoder->dec_time_sum = decoder->dec_time_sum +
+				ddl_t2 - time_data->ddl_t1;
+			if (time_data->ddl_count == 5)
+				decoder->avg_dec_time =
+					decoder->dec_time_sum / 3;
+		}
+		time_data->ddl_t1 = 0;
 	}
 }
 
@@ -317,4 +483,19 @@ void ddl_reset_time_variables(u8 codec)
 		ddl_enc_count = 0;
 	}
 }
-#endif
+
+int ddl_get_core_decode_proc_time(u32 *ddl_handle)
+{
+	int avg_time = 0;
+	struct ddl_client_context *ddl =
+		(struct ddl_client_context *) ddl_handle;
+	avg_time = ddl_vidc_decode_get_avg_time(ddl);
+	return avg_time;
+}
+
+void ddl_reset_avg_dec_time(u32 *ddl_handle)
+{
+	struct ddl_client_context *ddl =
+		(struct ddl_client_context *) ddl_handle;
+	ddl_vidc_decode_reset_avg_time(ddl);
+}

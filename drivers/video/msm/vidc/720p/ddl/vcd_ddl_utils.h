@@ -40,15 +40,21 @@
 #define DDL_MALLOC(x)  kmalloc(x, GFP_KERNEL)
 #define DDL_FREE(x)   { if ((x)) kfree((x)); (x) = NULL; }
 
-void ddl_pmem_alloc(struct ddl_buf_addr *, u32, u32);
+#define DBG_PMEM(x...) \
+do { \
+	if (vidc_msg_pmem) \
+		printk(KERN_DEBUG x); \
+} while (0)
 
-void ddl_pmem_free(struct ddl_buf_addr);
-
-void ddl_get_core_start_time(u8 codec);
+void ddl_set_core_start_time(const char *func_name, u32 index);
 
 void ddl_calc_core_time(u8 codec);
 
 void ddl_reset_time_variables(u8 codec);
+
+int ddl_get_core_decode_proc_time(u32 *ddl_handle);
+
+void ddl_reset_avg_dec_time(u32 *ddl_handle);
 
 #define DDL_ASSERT(x)
 #define DDL_MEMSET(src, value, len) memset((src), (value), (len))

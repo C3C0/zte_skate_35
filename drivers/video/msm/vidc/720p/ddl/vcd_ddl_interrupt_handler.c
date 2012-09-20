@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,7 +16,7 @@
  *
  */
 
-#include "vidc_type.h"
+#include <media/msm/vidc_type.h>
 #include "vidc.h"
 #include "vcd_ddl_utils.h"
 #include "vcd_ddl_metadata.h"
@@ -282,7 +282,9 @@ static u32 ddl_header_done_callback(struct ddl_context *ddl_context)
 			decoder->client_output_buf_req.actual_count
 			&& decoder->progressive_only)
 			need_reconfig = false;
-		if ((input_vcd_frm->data_len == seq_hdr_info.dec_frm_size ||
+		if (input_vcd_frm->flags & VCD_FRAME_FLAG_EOS)
+			need_reconfig = false;
+		if ((input_vcd_frm->data_len <= seq_hdr_info.dec_frm_size ||
 			 (input_vcd_frm->flags & VCD_FRAME_FLAG_CODECCONFIG)) &&
 			(!need_reconfig ||
 			 !(input_vcd_frm->flags & VCD_FRAME_FLAG_EOS))) {
@@ -831,6 +833,12 @@ static u32 ddl_get_frame
 		{
 			frame->frame = VCD_FRAME_NOTCODED;
 			frame->data_len = 0;
+			break;
+		}
+	case VIDC_720P_IDRFRAME:
+		{
+			frame->flags |= VCD_FRAME_FLAG_SYNCFRAME;
+			frame->frame = VCD_FRAME_IDR;
 			break;
 		}
 	default:

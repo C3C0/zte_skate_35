@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Code Aurora Forum. All rights reserved.
+/* Copyright (c) 2010-2012, Code Aurora Forum. All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are
@@ -31,7 +31,7 @@
 #define _VCD_DDL_UTILS_H_
 
 #include <linux/delay.h>
-#include "vidc_type.h"
+#include <media/msm/vidc_type.h>
 
 #ifdef DDL_MSG_LOG
 #define DDL_MSG_LOW(x...)    printk(KERN_INFO x)
@@ -65,11 +65,13 @@
 
 #define DDL_MIN(x, y)  ((x < y) ? x : y)
 #define DDL_MAX(x, y)  ((x > y) ? x : y)
+#define DDL_MEMCPY(dest, src, len)  memcpy((dest), (src), (len))
+#define DDL_MEMSET(src, value, len) memset((src), (value), (len))
 
-#ifdef DDL_PROFILE
-void ddl_get_core_start_time(u8 codec);
-void ddl_calc_core_time(u8 codec);
-void ddl_reset_time_variables(u8 codec);
-#endif
-
+void ddl_set_core_start_time(const char *func_name, u32 index);
+void ddl_reset_core_time_variables(u32 index);
+void ddl_calc_core_proc_time_cnt(const char *func_name, u32 index, u32 count);
+void ddl_update_core_start_time(const char *func_name, u32 index);
+int ddl_get_core_decode_proc_time(u32 *ddl_handle);
+void ddl_reset_avg_dec_time(u32 *ddl_handle);
 #endif

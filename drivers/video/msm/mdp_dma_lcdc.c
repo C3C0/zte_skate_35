@@ -37,7 +37,7 @@
 #include "mdp.h"
 #include "msm_fb.h"
 #include "mdp4.h"
-#if (defined CONFIG_FB_MSM_LCDC_OLED_WVGA)||(defined CONFIG_FB_MSM_LCDC_SKATE_WVGA)   //ZTE_LCD_LHT_20100810_001
+#if (defined CONFIG_FB_MSM_LCDC_OLED_WVGA)||(defined CONFIG_FB_MSM_LCDC_SKATE_WVGA) ||(defined CONFIG_FB_MSM_LCDC_BLADE2_WVGA)||(defined CONFIG_FB_MSM_LCDC_SKATE_TEST_SAMPLE_WVGA)   //ZTE_LCD_LHT_20100810_001
 extern void lcdc_lead_sleep(void);
 extern void lcdc_truly_sleep(void);
 extern u32 LcdPanleID;
@@ -103,6 +103,7 @@ int mdp_lcdc_on(struct platform_device *pdev)
 	uint32 timer_base = LCDC_BASE;
 	uint32 block = MDP_DMA2_BLOCK;
 	int ret;
+	uint32_t mask, curr;
 
 	mfd = (struct msm_fb_data_type *)platform_get_drvdata(pdev);
 
@@ -120,7 +121,8 @@ int mdp_lcdc_on(struct platform_device *pdev)
 
 	bpp = fbi->var.bits_per_pixel / 8;
 	buf = (uint8 *) fbi->fix.smem_start;
-	buf += fbi->var.xoffset * bpp + fbi->var.yoffset * fbi->fix.line_length;
+
+	buf += calc_fb_offset(mfd, fbi, bpp);
 
 #ifdef CONFIG_ZTE_PLATFORM
 	dma2_cfg_reg = DMA_PACK_ALIGN_MSB | DMA_DITHER_EN | DMA_OUT_SEL_LCDC;
@@ -191,6 +193,9 @@ int mdp_lcdc_on(struct platform_device *pdev)
 	/* x/y coordinate = always 0 for lcdc */
 	MDP_OUTP(MDP_BASE + dma_base + 0x10, 0);
 	/* dma config */
+	curr = inpdw(MDP_BASE + DMA_P_BASE);
+	mask = 0x0FFFFFFF;
+	dma2_cfg_reg = (dma2_cfg_reg & mask) | (curr & ~mask);
 	MDP_OUTP(MDP_BASE + dma_base, dma2_cfg_reg);
 
 	/*
@@ -332,6 +337,16 @@ int mdp_lcdc_off(struct platform_device *pdev)
 	if(LcdPanleID==61)
 		lcdc_truly_sleep();
 #endif
+#ifdef CONFIG_FB_MSM_LCDC_SKATE_TEST_SAMPLE_WVGA    //ZTE_LCD_LHT_20100810_001
+	if(LcdPanleID==42)
+		lcdc_lead_sleep();
+	if(LcdPanleID==41)
+		lcdc_truly_sleep();
+#endif
+#ifdef CONFIG_FB_MSM_LCDC_BLADE2_WVGA    //ZTE_LCD_LHT_20100810_001
+	if(LcdPanleID==101)
+		lcdc_truly_sleep();
+#endif
 
 	/* MDP cmd block enable */
 	mdp_pipe_ctrl(MDP_CMD_BLOCK, MDP_BLOCK_POWER_ON, FALSE);
@@ -366,8 +381,8 @@ void mdp_lcdc_update(struct msm_fb_data_type *mfd)
 	/* no need to power on cmd block since it's lcdc mode */
 	bpp = fbi->var.bits_per_pixel / 8;
 	buf = (uint8 *) fbi->fix.smem_start;
-	buf += fbi->var.xoffset * bpp +
-		fbi->var.yoffset * fbi->fix.line_length;
+
+	buf += calc_fb_offset(mfd, fbi, bpp);
 
 	dma_base = DMA_P_BASE;
 
