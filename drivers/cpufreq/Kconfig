@@ -95,7 +95,6 @@ config CPU_FREQ_DEFAULT_GOV_USERSPACE
 config CPU_FREQ_DEFAULT_GOV_ONDEMAND
 	bool "ondemand"
 	select CPU_FREQ_GOV_ONDEMAND
-	select CPU_FREQ_GOV_PERFORMANCE
 	help
 	  Use the CPUFreq governor 'ondemand' as default. This allows
 	  you to get a full dynamic frequency capable system by simply
@@ -107,7 +106,6 @@ config CPU_FREQ_DEFAULT_GOV_ONDEMAND
 config CPU_FREQ_DEFAULT_GOV_CONSERVATIVE
 	bool "conservative"
 	select CPU_FREQ_GOV_CONSERVATIVE
-	select CPU_FREQ_GOV_PERFORMANCE
 	help
 	  Use the CPUFreq governor 'conservative' as default. This allows
 	  you to get a full dynamic frequency capable system by simply
@@ -118,15 +116,19 @@ config CPU_FREQ_DEFAULT_GOV_CONSERVATIVE
 
 config CPU_FREQ_DEFAULT_GOV_SMARTASS2
 	bool "smartass2"
-	select CPU_FREQ_GOV_SMARTASS
-	select CPU_FREQ_GOV_PERFORMANCE
+	select CPU_FREQ_GOV_SMARTASS2
 	help
-Use the CPUFreq governor 'smartass' as default.
+	Use the CPUFreq governor 'SmartassV2' as default.
+
+config CPU_FREQ_DEFAULT_GOV_SMARTASSH3
+	bool "smartassH3"
+	select CPU_FREQ_GOV_SMARTASSH3
+	help
+	Use the CPUFreq governor 'SmartassH3' as default.
 
 config CPU_FREQ_DEFAULT_GOV_LAGFREE
 	bool "lagfree"
 	select CPU_FREQ_GOV_LAGFREE
-	select CPU_FREQ_GOV_PERFORMANCE
 	help
 	  Use the CPUFreq governor 'lagfree' as default. This allows
 	  you to get a full dynamic frequency capable system by simply
@@ -228,11 +230,19 @@ config CPU_FREQ_GOV_CONSERVATIVE
 	  If in doubt, say N.
 
 config CPU_FREQ_GOV_SMARTASS2
-	tristate "'smartass2' cpufreq governor"
+	tristate "'SmartassV2' cpufreq governor"
 	depends on CPU_FREQ
 	help
-	  Smartass2' - a "slightly more agressive smartass" governor!
+	  SmartassV2 - a "slightly more agressive smartass" governor!
    
+	  If in doubt, say N.
+
+config CPU_FREQ_GOV_SMARTASSH3
+	tristate "'SmartassH3' cpufreq governor"
+	depends on CPU_FREQ
+	help
+	  SmartassH3 - a "smartassV2 with tweaks by H3ROS" governor!
+
 	  If in doubt, say N.
 
 config CPU_FREQ_GOV_MINMAX
