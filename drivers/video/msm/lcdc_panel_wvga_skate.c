@@ -1801,7 +1801,7 @@ static LCD_PANEL_TYPE lcd_panel_detect(void)
 		gpio_lcd_lead_emuspi_read_one_index(0x0401,&id_l);
 		printk("lead id is 0x%x%x\n",id_h,id_l);
 	}
-	if(id==0x6902)
+	if(id==0x6902 || id==0x6904)
 	{
 		panel_type=LCD_PANEL_TRULY_WVGA;
 		return panel_type;
