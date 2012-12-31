@@ -50,11 +50,18 @@
 #include <mach/msm_battery.h>
 #include <mach/rpc_server_handset.h>
 
-
+#include <linux/slab.h>
 #include <linux/mtd/nand.h>
 #include <linux/mtd/partitions.h>
 #include <linux/i2c.h>
+
 #include <linux/i2c-gpio.h> 
+
+#ifdef CONFIG_USB_G_ANDROID
+#include <linux/usb/android.h>
+#include <mach/usbdiag.h>
+#endif
+
 #include <linux/android_pmem.h>
 #include <mach/camera.h>
 #include <linux/proc_fs.h>
@@ -63,9 +70,7 @@
 #include "socinfo.h"
 #include "clock.h"
 #include "msm-keypad-devices.h"
-#ifdef CONFIG_USB_ANDROID
-#include <linux/usb/android_composite.h>
-#endif
+
 #include "pm.h"
 #ifdef CONFIG_ARCH_MSM7X27
 #include <linux/msm_kgsl.h>
@@ -138,236 +143,6 @@ static struct resource smc91x_resources[] = {
 	},
 };
 
-#ifdef CONFIG_USB_FUNCTION
-#ifndef CONFIG_ZTE_PLATFORM
-static struct usb_mass_storage_platform_data usb_mass_storage_pdata = {
-	.nluns          = 0x02,
-	.buf_size       = 16384,
-	.vendor         = "GOOGLE",
-	.product        = "Mass storage",
-	.release        = 0xffff,
-};
-#endif
-
-static struct platform_device mass_storage_device = {
-	.name           = "usb_mass_storage",
-	.id             = -1,
-	.dev            = {
-		.platform_data          = &usb_mass_storage_pdata,
-	},
-};
-#endif
-
-#if 0
-#ifdef CONFIG_USB_ANDROID
-#define PRODUCT_ID_ALL_INTERFACE          0x1350
-#define PRODUCT_ID_MS_ADB                      0x1351
-#define PRODUCT_ID_ADB                             0x1352
-#define PRODUCT_ID_MS                               0x1353
-#define PRODUCT_ID_DIAG                           0x0112
-#define PRODUCT_ID_DIAG_NMEA_MODEM   0x0111
-#define PRODUCT_ID_MODEM_MS_ADB         0x1354
-#define PRODUCT_ID_MODEM_MS                 0x1355
-#define PRODUCT_ID_MS_CDROM                 0x0083
-#define PRODUCT_ID_RNDIS_MS                 0x1364
-#define PRODUCT_ID_RNDIS_MS_ADB             0x1364
-#define PRODUCT_ID_RNDIS             0x1365
-#define PRODUCT_ID_DIAG_MODEM_NEMA_MS_AT             0x1367
-#define PRODUCT_ID_DIAG_MODEM_NEMA_MS_ADB_AT             0x1366
-#define PRODUCT_ID_RNDIS_ADB             0x1373
-/* dynamic composition */
-static struct usb_composition usb_func_composition[] = {
-#ifdef 	CONFIG_ZTE_PLATFORM	
-	{
-		/* MSC */
-		.product_id         = PRODUCT_ID_MS,
-		.functions	    = 0x02,
-		.adb_product_id     = PRODUCT_ID_MS_ADB,
-		.adb_functions	    = 0x12
-	},
-	{
-		/* ADB*/
-		.product_id         = PRODUCT_ID_ADB,
-		.functions	    = 0x01,
-		.adb_product_id     = PRODUCT_ID_ADB,
-		.adb_functions	    = 0x01
-	},
-	{
-		/* diag + modem + nmea + ms + adb*/
-		.product_id         = PRODUCT_ID_ALL_INTERFACE,
-		.functions	    = 0x12764,
-		.adb_product_id     = PRODUCT_ID_ALL_INTERFACE,
-		.adb_functions	    = 0x12764
-	},
-	{
-		/* diag + nmea + modem */
-		.product_id         = PRODUCT_ID_DIAG_NMEA_MODEM,
-		.functions	    = 0x674,
-		.adb_product_id     = PRODUCT_ID_DIAG_NMEA_MODEM,
-		.adb_functions	    = 0x674
-	},
-	{
-		/* diag */
-		.product_id         = PRODUCT_ID_DIAG,
-		.functions	    = 0x4,
-		.adb_product_id     = PRODUCT_ID_DIAG,
-		.adb_functions	    = 0x4
-	},
-	{
-		/* modem + ms + adb */
-		.product_id         = PRODUCT_ID_MODEM_MS,
-		.functions	    = 0x26,
-		.adb_product_id     = PRODUCT_ID_MODEM_MS_ADB,
-		.adb_functions	    = 0x126
-	},
-	{
-		/* ms + CDROM */
-		.product_id         = PRODUCT_ID_MS_CDROM,
-		.functions	    = 0x2,
-		.adb_product_id     = PRODUCT_ID_MS_CDROM,
-		.adb_functions	    = 0x2
-	},
-	{
-		/* rndis + ms + adb */
-		.product_id         = PRODUCT_ID_RNDIS_MS,
-		.functions	    = 0x2A,
-		.adb_product_id     = PRODUCT_ID_RNDIS_MS_ADB,
-		.adb_functions	    = 0x12A
-	},
-	{
-		/* rndis */
-		.product_id         = PRODUCT_ID_RNDIS,
-		.functions	    = 0xA,
-		.adb_product_id     = PRODUCT_ID_RNDIS,
-		.adb_functions	    = 0xA
-	},
-	{
-		/* rndis + adb*/
-		.product_id         = PRODUCT_ID_RNDIS_ADB,
-		.functions	    = 0xA,
-		.adb_product_id     = PRODUCT_ID_RNDIS_ADB,
-		.adb_functions	    = 0x1A
-	},
-	{
-		/* diag+modm+nema+ms+at*/
-		.product_id         = PRODUCT_ID_DIAG_MODEM_NEMA_MS_AT,
-		.functions	    = 0xB2764,
-		.adb_product_id     = PRODUCT_ID_DIAG_MODEM_NEMA_MS_ADB_AT,
-		.adb_functions	    = 0xB12764
-	},
-	{
-		/* diag+modm+nema+ms+adb+at*/
-		.product_id         = PRODUCT_ID_DIAG_MODEM_NEMA_MS_ADB_AT,
-		.functions	    = 0xB12764,
-		.adb_product_id     = PRODUCT_ID_DIAG_MODEM_NEMA_MS_ADB_AT,
-		.adb_functions	    = 0xB12764
-	},
-
-#else
-	{
-		/* MSC */
-		.product_id         = 0xF000,
-		.functions	    = 0x02,
-		.adb_product_id     = 0x9015,
-		.adb_functions	    = 0x12
-	},
-#ifdef CONFIG_USB_F_SERIAL
-	{
-		/* MODEM */
-		.product_id         = 0xF00B,
-		.functions	    = 0x06,
-		.adb_product_id     = 0x901E,
-		.adb_functions	    = 0x16,
-	},
-#endif
-#ifdef CONFIG_USB_ANDROID_DIAG
-	{
-		/* DIAG */
-		.product_id         = 0x900E,
-		.functions	    = 0x04,
-		.adb_product_id     = 0x901D,
-		.adb_functions	    = 0x14,
-	},
-#endif
-#if defined(CONFIG_USB_ANDROID_DIAG) && defined(CONFIG_USB_F_SERIAL)
-	{
-		/* DIAG + MODEM */
-		.product_id         = 0x9004,
-		.functions	    = 0x64,
-		.adb_product_id     = 0x901F,
-		.adb_functions	    = 0x0614,
-	},
-	{
-		/* DIAG + MODEM + NMEA*/
-		.product_id         = 0x9016,
-		.functions	    = 0x764,
-		.adb_product_id     = 0x9020,
-		.adb_functions	    = 0x7614,
-	},
-	{
-		/* DIAG + MODEM + NMEA + MSC */
-		.product_id         = 0x9017,
-		.functions	    = 0x2764,
-		.adb_product_id     = 0x9018,
-		.adb_functions	    = 0x27614,
-	},
-#endif
-#ifdef CONFIG_USB_ANDROID_CDC_ECM
-	{
-		/* MSC + CDC-ECM */
-		.product_id         = 0x9014,
-		.functions	    = 0x82,
-		.adb_product_id     = 0x9023,
-		.adb_functions	    = 0x812,
-	},
-#endif
-#ifdef CONFIG_USB_ANDROID_RMNET
-	{
-		/* DIAG + RMNET */
-		.product_id         = 0x9021,
-		.functions	    = 0x94,
-		.adb_product_id     = 0x9022,
-		.adb_functions	    = 0x914,
-	},
-#endif
-#ifdef CONFIG_USB_ANDROID_RNDIS
-	{
-		/* RNDIS */
-		.product_id         = 0xF00E,
-		.functions	    = 0xA,
-		.adb_product_id     = 0x9024,
-		.adb_functions	    = 0x1A,
-	},
-#endif
-#endif
-};
-static struct android_usb_platform_data android_usb_pdata = {
-#ifdef CONFIG_ZTE_PLATFORM
-	.vendor_id	= 0x19d2,
-	.version	= 0x0100,
-	.compositions   = usb_func_composition,
-	.num_compositions = ARRAY_SIZE(usb_func_composition),
-	.product_name	= "ZTE HSUSB Device",
-	.manufacturer_name = "ZTE Incorporated",
-	.nluns = 1,
-	#else
-	.vendor_id	= 0x05C6,
-	.version	= 0x0100,
-	.compositions   = usb_func_composition,
-	.num_compositions = ARRAY_SIZE(usb_func_composition),
-	.product_name	= "Qualcomm HSUSB Device",
-	.manufacturer_name = "Qualcomm Incorporated",
-	.nluns = 1,
-	#endif
-};
-static struct platform_device android_usb_device = {
-	.name	= "android_usb",
-	.id		= -1,
-	.dev		= {
-		.platform_data = &android_usb_pdata,
-	},
-};
-#endif
 static struct platform_device smc91x_device = {
 	.name		= "smc91x",
 	.id		= 0,
@@ -375,229 +150,11 @@ static struct platform_device smc91x_device = {
 	.resource	= smc91x_resources,
 };
 
-
-#ifndef CONFIG_ZTE_PLATFORM
-#ifdef CONFIG_USB_FUNCTION
-static struct usb_function_map usb_functions_map[] = {
-	{"diag", 0},
-	{"adb", 1},
-	{"modem", 2},
-	{"nmea", 3},
-	{"mass_storage", 4},
-	{"ethernet", 5},
-	{"rmnet", 6},
-};
-
-/* dynamic composition */
-static struct usb_composition usb_func_composition[] = {
-	{
-		.product_id         = 0x9012,
-		.functions	    = 0x5, /* 0101 */
-	},
-
-	{
-		.product_id         = 0x9013,
-		.functions	    = 0x15, /* 10101 */
-	},
-
-	{
-		.product_id         = 0x9014,
-		.functions	    = 0x30, /* 110000 */
-	},
-
-	{
-		.product_id         = 0x9016,
-		.functions	    = 0xD, /* 01101 */
-	},
-
-	{
-		.product_id         = 0x9017,
-		.functions	    = 0x1D, /* 11101 */
-	},
-
-	{
-		.product_id         = 0xF000,
-		.functions	    = 0x10, /* 10000 */
-	},
-
-	{
-		.product_id         = 0xF009,
-		.functions	    = 0x20, /* 100000 */
-	},
-
-	{
-		.product_id         = 0x9018,
-		.functions	    = 0x1F, /* 011111 */
-	},
-#ifdef CONFIG_USB_FUNCTION_RMNET
-	{
-		.product_id         = 0x9021,
-		/* DIAG + RMNET */
-		.functions	    = 0x41,
-	},
-	{
-		.product_id         = 0x9022,
-		/* DIAG + ADB + RMNET */
-		.functions	    = 0x43,
-	},
-#endif
-
-};
-
-static struct msm_hsusb_platform_data msm_hsusb_pdata = {
-	.version	= 0x0100,
-	.phy_info	= (USB_PHY_INTEGRATED | USB_PHY_MODEL_65NM),
-	.vendor_id          = 0x5c6,
-	.product_name       = "Qualcomm HSUSB Device",
-	.serial_number      = "1234567890ABCDEF",
-	.manufacturer_name  = "Qualcomm Incorporated",
-	.compositions	= usb_func_composition,
-	.num_compositions = ARRAY_SIZE(usb_func_composition),
-	.function_map   = usb_functions_map,
-	.num_functions	= ARRAY_SIZE(usb_functions_map),
-	.config_gpio    = NULL,
-};
-#endif
-
-#endif 
-#endif
-
-static struct platform_device smc91x_device = {
-	.name		= "smc91x",
-	.id		= 0,
-	.num_resources	= ARRAY_SIZE(smc91x_resources),
-	.resource	= smc91x_resources,
-};
-
-#ifdef CONFIG_USB_ANDROID
-#if 0
-static char *usb_functions_default[] = {
-	"diag",
-	"modem",
-	"nmea",
-	"rmnet",
-	"usb_mass_storage",
-};
-
-static char *usb_functions_default_adb[] = {
-	"diag",
-	"adb",
-	"modem",
-	"nmea",
-	"rmnet",
-	"usb_mass_storage",
-};
-
-static char *usb_functions_rndis_diag[] = {
-	"rndis",
-	"diag",
-};
-
-static char *usb_functions_rndis_adb_diag[] = {
-	"rndis",
-	"adb",
-	"diag",
-};
-#endif
-
-static char *usb_functions_all[] = {
-#ifdef CONFIG_USB_ANDROID_RNDIS
-	"rndis",
-#endif
-#ifdef CONFIG_USB_ANDROID_DIAG
-	"diag",
-#endif
-	"adb",
-#ifdef CONFIG_USB_F_SERIAL
-	"modem",
-	"nmea",
-#endif
-#ifdef CONFIG_USB_ANDROID_RMNET
-	"rmnet",
-#endif
-	"usb_mass_storage",
-#ifdef CONFIG_USB_ANDROID_ACM
-	"acm",
-#endif
-#ifdef CONFIG_USB_ANDROID_AT
-	"at"
-#endif
-};
-
-
-#if 0
-static struct android_usb_product usb_products[] = {
-	{
-		.product_id	= 0x9026,
-		.num_functions	= ARRAY_SIZE(usb_functions_default),
-		.functions	= usb_functions_default,
-	},
-	{
-		.product_id	= 0x9025,
-		.num_functions	= ARRAY_SIZE(usb_functions_default_adb),
-		.functions	= usb_functions_default_adb,
-	},
-	{
-		.product_id	= 0x902C,
-		.num_functions	= ARRAY_SIZE(usb_functions_rndis_diag),
-		.functions	= usb_functions_rndis_diag,
-	},
-	{
-		.product_id	= 0x902D,
-		.num_functions	= ARRAY_SIZE(usb_functions_rndis_adb_diag),
-		.functions	= usb_functions_rndis_adb_diag,
-	},
-};
-#else
-
-#include "zte_usb_config.c"
-
-#endif
-
-static struct usb_mass_storage_platform_data mass_storage_pdata = {
-	.nluns		= 1,
-	.vendor		= "ZTE Incorporated",
-	.product        = "Mass storage",
-	.release	= 0x0100,
-};
-
-static struct platform_device usb_mass_storage_device = {
-	.name	= "usb_mass_storage",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &mass_storage_pdata,
-	},
-};
-
-#if 0
-static struct usb_ether_platform_data rndis_pdata = {
-	/* ethaddr is filled by board_serialno_setup */
-	.vendorID	= 0x05C6,
-	.vendorDescr	= "Qualcomm Incorporated",
-};
-#endif
-static struct platform_device rndis_device = {
-	.name	= "rndis",
-	.id	= -1,
-	.dev	= {
-		.platform_data = &rndis_pdata,
-	},
-};
-
-#if 0
+#ifdef CONFIG_USB_G_ANDROID
 static struct android_usb_platform_data android_usb_pdata = {
-	.vendor_id	= 0x05C6,
-	.product_id	= 0x9026,
-	.version	= 0x0100,
-	.product_name		= "Qualcomm HSUSB Device",
-	.manufacturer_name	= "Qualcomm Incorporated",
-	.num_products = ARRAY_SIZE(usb_products),
-	.products = usb_products,
-	.num_functions = ARRAY_SIZE(usb_functions_all),
-	.functions = usb_functions_all,
-	.serial_number = "1234567890ABCDEF",
+        .update_pid_and_serial_num = usb_diag_update_pid_and_serial_num,
 };
-#endif
+
 static struct platform_device android_usb_device = {
 	.name	= "android_usb",
 	.id		= -1,
@@ -2613,19 +2170,10 @@ static struct platform_device *devices[] __initdata = {
 #endif
 #endif
 
-#ifdef CONFIG_USB_FUNCTION
-	&msm_device_hsusb_peripheral,
-	&mass_storage_device,
+#ifdef CONFIG_USB_G_ANDROID
+        &android_usb_device,
 #endif
 
-#ifdef CONFIG_USB_ANDROID
-	&usb_mass_storage_device,
-	&rndis_device,
-#ifdef CONFIG_USB_ANDROID_DIAG
-	&usb_diag_device,
-#endif
-	&android_usb_device,
-#endif
 
 	&msm_device_i2c,
 	&aux_i2c_gpio_device,  
@@ -3289,13 +2837,7 @@ static void __init msm7x2x_init(void)
 
 	usb_mpp_init();
 
-#ifdef CONFIG_USB_FUNCTION
-	msm_hsusb_pdata.swfi_latency =
-		msm7x27_pm_data
-		[MSM_PM_SLEEP_MODE_RAMP_DOWN_AND_WAIT_FOR_INTERRUPT].latency;
 
-	msm_device_hsusb_peripheral.dev.platform_data = &msm_hsusb_pdata;
-#endif
 
 #ifdef CONFIG_USB_MSM_OTG_72K
 	msm_device_otg.dev.platform_data = &msm_otg_pdata;
