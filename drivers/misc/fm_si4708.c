@@ -627,6 +627,7 @@ static int si4708_seek(int dir, int *p_frequency)
 {
 	int res = 0;
 	int seeked_channel;
+	int maxseek = 15;
 
 	res = si4708_regs_read(fm_si4708_dev->client, &fm_si4708_dev->regs[FM_REG_RD_START], 24);
 	if (res < 0) {
@@ -653,13 +654,20 @@ static int si4708_seek(int dir, int *p_frequency)
 		return res;
 	}
 
-	mdelay(SI4708_SEEK_TUNE_DELAY);    /*seek time*/
+	/* poll for successful seek, or time out */
+	while (maxseek--) {
+		mdelay(SI4708_SEEK_TUNE_DELAY);    /*seek poll interval*/
 
-	/*check it is whether seek complete*/
-	res = si4708_regs_read(fm_si4708_dev->client, &fm_si4708_dev->regs[FM_REG_RD_START], 4); //read statusrssi
-	if (res < 0) {
-		fm_si4708_dev->initialized = 0;
-		return res;
+		/*check it is whether seek complete*/
+		res = si4708_regs_read(fm_si4708_dev->client, &fm_si4708_dev->regs[FM_REG_RD_START], 4); //read statusrssi
+		if (res < 0) {
+			fm_si4708_dev->initialized = 0;
+			return res;
+		}
+
+		/* STC=1 indicates a successful seek */
+		if (fm_si4708_dev->regs[FM_REG_STATUSRSSI] & REG_STC_MASK)
+			break;
 	}
 
 	/*no matter what's the STC status, we should shold stop seeking here.*/

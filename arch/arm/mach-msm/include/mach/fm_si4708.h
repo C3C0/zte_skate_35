@@ -14,7 +14,7 @@
 #define      SI4708_RESET_DELAY               110       //ms
 #define      SI4708_POWERUP_DELAY         110           //ms
 #define      SI4708_POWERDOWN_DELAY         110         //ms
-#define      SI4708_SEEK_TUNE_DELAY       888           //ms,change from 60 to 888 for tune test
+#define      SI4708_SEEK_TUNE_DELAY       60           //ms,change from 60 to 888 for tune test
 /****************************INTERNAL VARIBLE******************************/
 
 #define      SEEKUP                     1               /* seek up*/
