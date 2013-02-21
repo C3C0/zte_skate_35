@@ -35,7 +35,7 @@
 
 #define REG_VOL_MASK  0x0F
 #define REG_BAND_MASK  0xC0
-#define REG_SPACE_MASK 0x50
+#define REG_SPACE_MASK 0x30
 #define REG_TRACK_MASK 0x20
 #define REG_STC_MASK  0x40
 #define REG_SF_MASK  0x20
