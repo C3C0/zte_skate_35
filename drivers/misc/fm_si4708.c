@@ -356,6 +356,29 @@ static int si4708_set_space(char space)
 	return res;
 }
 
+/**********************************************************************
+* Function:     si4708_set_deemphasis(char de)
+* Description:  Sets deemphasis time constant
+* Input:        0 = 75us, 1 = 50us
+* Output:       none
+* Return:       0 = success, negative = failure
+* Others:
+**********************************************************************/
+static int si4708_set_deemphasis(char de)
+{
+	int res = 0;
+	de &= 1;
+
+	fm_si4708_dev->regs[FM_REG_SYSCONFIG1] &= ~REG_DE_MASK;
+	fm_si4708_dev->regs[FM_REG_SYSCONFIG1] |= de << 3;
+
+	/*write  deemphasis tc  to register*/
+	res = si4708_regs_write(fm_si4708_dev->client, &fm_si4708_dev->regs[FM_REG_WR_START], 6);
+	if (res < 0)
+		fm_si4708_dev->initialized = 0;
+
+	return res;
+}
 
 /**********************************************************************
 * Function:    si4708_get_track(void)
@@ -893,6 +916,14 @@ static int si4708_ioctl(struct inode *inode, struct file *filp,
 			goto exit;
 		}
 		res = si4708_set_space(int_to_char(user_data));
+		break;
+
+	case   FM_SET_DEEMPHASIS:
+		if (get_user(user_data, (int *)arg)) {
+			res = -EFAULT;
+			goto exit;
+		}
+		res = si4708_set_deemphasis(int_to_char(user_data));
 		break;
 
 	case   FM_GET_AUDIOTRACK:

@@ -32,6 +32,8 @@
 #define      FM_SPACE_100K    1
 #define      FM_SPACE_50K      2
 
+#define      FM_DE_TC_50    1
+#define      FM_DE_TC_75    0
 
 #define REG_VOL_MASK  0x0F
 #define REG_BAND_MASK  0xC0
@@ -44,6 +46,7 @@
 #define REG_SEEK_MASK 0x01
 #define REG_SEEKUP_MASK 0x02
 #define REG_SKMODE_MASK 0x04
+#define REG_DE_MASK 0x08
 
 #define FM_VOL_MUTE    0 /* volume min.= 0*/
 #define FM_VOL_MAX      15 /* volume max.=15*/
@@ -80,6 +83,7 @@
 #define FM_SET_VOL                        _IOW(FM_IOC_MAGIC, 8, int)
 //#define FM_VOL_UP                               _IO(FM_IOC_MAGIC, 9)
 //#define FM_VOL_DOWN                       _IO(FM_IOC_MAGIC, 10)
+#define FM_SET_DEEMPHASIS                       _IOW(FM_IOC_MAGIC,32,int)
 /* Reserved interface*/
 #define FM_GET_BAND                             _IOR(FM_IOC_MAGIC, 11, int)
 #define FM_SET_BAND                                    _IOW(FM_IOC_MAGIC, 12, int)
