@@ -381,6 +381,30 @@ static int si4708_set_deemphasis(char de)
 }
 
 /**********************************************************************
+* Function:     si4708_set_rds(char rds)
+* Description:  Enable/disable RDS
+* Input:        0 = off, 1 = on
+* Output:       none
+* Return:       0 = success, negative = failure
+* Others:
+**********************************************************************/
+static int si4708_set_rds(char rds)
+{
+	int res = 0;
+	rds &= 1;
+
+	fm_si4708_dev->regs[FM_REG_SYSCONFIG1] &= ~REG_RDS_MASK;
+	fm_si4708_dev->regs[FM_REG_SYSCONFIG1] |= rds << 4;
+
+	/*write  rds toggle  to register*/
+	res = si4708_regs_write(fm_si4708_dev->client, &fm_si4708_dev->regs[FM_REG_WR_START], 6);
+	if (res < 0)
+		fm_si4708_dev->initialized = 0;
+
+	return res;
+}
+
+/**********************************************************************
 * Function:    si4708_get_track(void)
 * Description: This function  gets track status from register
 * Input:        none
@@ -776,6 +800,7 @@ static int si4708_open(struct inode *inode, struct file *filp)
 		return res;
 
 	res = si4708_read_all_regs();
+
 /*setting interfaces,here we get init status,application could change it after init*/
 	si4708_get_band();
 	si4708_get_vol();
@@ -836,6 +861,7 @@ static int si4708_ioctl(struct inode *inode, struct file *filp,
 	int res = 0;
 	int user_data;
 	int user_value[2];
+	int rds_data[4];
 
 	/*kernel-space communicates with user-space */
 	switch (cmd) {
@@ -943,6 +969,30 @@ static int si4708_ioctl(struct inode *inode, struct file *filp,
 
 	case   FM_GET_CURRENTFREQ:
 		if (put_user(si4708_get_frequency(), (int *)arg)) {
+			res = -EFAULT;
+			goto exit;
+		}
+		break;
+
+	case   Si4708_IOC_SET_RDS:
+		if (get_user(user_data, (int *)arg)) {
+			res = -EFAULT;
+			goto exit;
+		}
+		res = si4708_set_rds(int_to_char(user_data));
+		break;
+
+	case   Si4708_IOC_GET_RDS:
+		res = si4708_regs_read(fm_si4708_dev->client, &fm_si4708_dev->regs[FM_REG_RD_START], 12);
+		if (res < 0 || (fm_si4708_dev->regs[FM_REG_STATUSRSSI] & REG_RDSR_MASK) == 0) {
+			res = -EAGAIN;
+			goto exit;
+		}
+		rds_data[0] = fm_si4708_dev->regs[FM_REG_RDSA+1] | (fm_si4708_dev->regs[FM_REG_RDSA] << 8);
+		rds_data[1] = fm_si4708_dev->regs[FM_REG_RDSB+1] | (fm_si4708_dev->regs[FM_REG_RDSB] << 8);
+		rds_data[2] = fm_si4708_dev->regs[FM_REG_RDSC+1] | (fm_si4708_dev->regs[FM_REG_RDSC] << 8);
+		rds_data[3] = fm_si4708_dev->regs[FM_REG_RDSD+1] | (fm_si4708_dev->regs[FM_REG_RDSD] << 8);
+		if (copy_to_user((int *)arg, rds_data, 4 * sizeof(int))) {
 			res = -EFAULT;
 			goto exit;
 		}

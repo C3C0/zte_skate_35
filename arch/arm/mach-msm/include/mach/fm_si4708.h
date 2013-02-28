@@ -47,6 +47,8 @@
 #define REG_SEEKUP_MASK 0x02
 #define REG_SKMODE_MASK 0x04
 #define REG_DE_MASK 0x08
+#define REG_RDS_MASK 0x10
+#define REG_RDSR_MASK 0x80
 
 #define FM_VOL_MUTE    0 /* volume min.= 0*/
 #define FM_VOL_MAX      15 /* volume max.=15*/
@@ -54,6 +56,10 @@
 
 #define FM_REG_STATUSRSSI 0
 #define FM_REG_READCHAN     2
+#define FM_REG_RDSA			4
+#define FM_REG_RDSB			6
+#define FM_REG_RDSC			8
+#define FM_REG_RDSD			10
 
 #define FM_REG_DEVICEID 12
 #define FM_REG_CHIPID     14
@@ -94,6 +100,9 @@
 #define FM_GET_CURRENTFREQ              _IOR(FM_IOC_MAGIC, 17, int)
 /*for test*/
 #define FM_DISPLAY_REG                           _IO(FM_IOC_MAGIC, 18)
+
+#define Si4708_IOC_SET_RDS                          _IOW(FM_IOC_MAGIC, 23, int)
+#define Si4708_IOC_GET_RDS                          _IOR(FM_IOC_MAGIC, 25, int[4])
 
 /******************************************************************************/
 #endif /* __SI4708_H__ */
