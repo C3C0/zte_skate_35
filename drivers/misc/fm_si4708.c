@@ -127,7 +127,7 @@ static int si4708_regs_write(struct i2c_client * client, const char * buf, int c
 
 /**********************************************************************/
 
-#define int_to_char(m)  ((char)(m & 0xFF))
+#define int_to_char(m)  ((char)((m) & 0xFF))
 
 /**********************************************************************
 * Function:    si4708_WR(char *in_data, int num, int isInit)
@@ -398,6 +398,30 @@ static int si4708_set_rds(char rds)
 
 	/*write  rds toggle  to register*/
 	res = si4708_regs_write(fm_si4708_dev->client, &fm_si4708_dev->regs[FM_REG_WR_START], 6);
+	if (res < 0)
+		fm_si4708_dev->initialized = 0;
+
+	return res;
+}
+
+/**********************************************************************
+* Function:     si4708_set_mute(char rds)
+* Description:  Enable/disable audio mute
+* Input:        0 = off, 1 = on
+* Output:       none
+* Return:       0 = success, negative = failure
+* Others:
+**********************************************************************/
+static int si4708_set_mute(char mute)
+{
+	int res = 0;
+	mute &= 1;
+
+	fm_si4708_dev->regs[FM_REG_POWERCFG] &= ~REG_DMUTE_MASK;
+	fm_si4708_dev->regs[FM_REG_POWERCFG] |= mute << 6;
+
+	/*write  rds toggle  to register*/
+	res = si4708_regs_write(fm_si4708_dev->client, &fm_si4708_dev->regs[FM_REG_WR_START], 2);
 	if (res < 0)
 		fm_si4708_dev->initialized = 0;
 
@@ -979,7 +1003,7 @@ static int si4708_ioctl(struct inode *inode, struct file *filp,
 			res = -EFAULT;
 			goto exit;
 		}
-		res = si4708_set_rds(int_to_char(user_data));
+		res = si4708_set_rds(int_to_char(!!user_data));
 		break;
 
 	case   Si4708_IOC_GET_RDS:
@@ -996,6 +1020,14 @@ static int si4708_ioctl(struct inode *inode, struct file *filp,
 			res = -EFAULT;
 			goto exit;
 		}
+		break;
+
+	case   Si4708_IOC_MUTE:
+		if (get_user(user_data, (int *)arg)) {
+			res = -EFAULT;
+			goto exit;
+		}
+		res = si4708_set_mute(int_to_char(!user_data));
 		break;
 
 	default:

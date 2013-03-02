@@ -49,6 +49,7 @@
 #define REG_DE_MASK 0x08
 #define REG_RDS_MASK 0x10
 #define REG_RDSR_MASK 0x80
+#define REG_DMUTE_MASK 0x40
 
 #define FM_VOL_MUTE    0 /* volume min.= 0*/
 #define FM_VOL_MAX      15 /* volume max.=15*/
@@ -87,6 +88,7 @@
 //#define FM_AUTOSEEK                              _IOR(FM_IOC_MAGIC, 6)
 #define FM_GET_VOL                         _IOR(FM_IOC_MAGIC, 7, int)
 #define FM_SET_VOL                        _IOW(FM_IOC_MAGIC, 8, int)
+#define Si4708_IOC_MUTE                             _IOW(FM_IOC_MAGIC, 9, int)
 //#define FM_VOL_UP                               _IO(FM_IOC_MAGIC, 9)
 //#define FM_VOL_DOWN                       _IO(FM_IOC_MAGIC, 10)
 #define FM_SET_DEEMPHASIS                       _IOW(FM_IOC_MAGIC,32,int)
